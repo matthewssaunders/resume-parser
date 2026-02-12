@@ -1,6 +1,6 @@
 // --- CONFIGURATION ---
 const CLOUDFLARE_WORKER_URL = "https://resume-parser.matthewssaunders.workers.dev/"; 
-const SECRET_KEY = "YOUR_CHOSEN_SECRET_PASSWORD"; // Must match 'SECRET_KEY' variable in Cloudflare
+const SECRET_KEY = "YRESUME-PARSER-V1"; // Must match 'SECRET_KEY' variable in Cloudflare
 
 const uploadInput = document.getElementById('pdf-upload');
 const loadingIndicator = document.getElementById('loading-indicator');
