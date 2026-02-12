@@ -1,6 +1,9 @@
 // --- CONFIGURATION ---
-const CLOUDFLARE_WORKER_URL = "https://resume-parser.matthewssaunders.workers.dev/"; 
-const SECRET_KEY = "YRESUME-PARSER-V1"; // Must match 'SECRET_KEY' variable in Cloudflare
+// 1. Enter your Cloudflare Worker URL (e.g., https://resume-parser.yourname.workers.dev)
+const CLOUDFLARE_WORKER_URL = "https://resume-parser.matthewssaunders.workers.dev"; 
+
+// 2. Enter the EXACT password you set in Cloudflare Variables
+const SECRET_KEY = "RESUME-PARSER-V1"; 
 
 const uploadInput = document.getElementById('pdf-upload');
 const loadingIndicator = document.getElementById('loading-indicator');
@@ -9,8 +12,12 @@ const savedSelect = document.getElementById('saved-resumes');
 const saveBtn = document.getElementById('save-local-btn');
 const deleteBtn = document.getElementById('delete-btn');
 
-// Configure PDF.js worker source (Relative to extension)
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+// Configure PDF.js worker
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+} else {
+  console.error("PDF.js not loaded. Did you download pdf.min.js?");
+}
 
 // --- 1. Initialization ---
 document.addEventListener('DOMContentLoaded', loadSavedResumesList);
@@ -38,8 +45,14 @@ uploadInput.addEventListener('change', async (e) => {
       body: JSON.stringify({ text: text })
     });
 
-    if (response.status === 401) throw new Error('Unauthorized: Check SECRET_KEY');
-    if (!response.ok) throw new Error('Worker failed');
+    if (response.status === 401) {
+      throw new Error(`Unauthorized (401). Please check the SECRET_KEY in sidepanel.js matches Cloudflare.`);
+    }
+    
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Worker failed: ${response.status} - ${errText}`);
+    }
     
     const parsedData = await response.json();
     
@@ -66,33 +79,31 @@ function renderJobs(jobs) {
   const jobsToShow = jobs.slice(0, 25);
 
   if(jobsToShow.length === 0) {
-    jobsContainer.innerHTML = '<div class="text-center text-slate-400 text-sm mt-4">No jobs found in AI response.</div>';
+    jobsContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:0.875rem;">No jobs found in AI response.</div>';
     return;
   }
 
   jobsToShow.forEach((job, index) => {
     const jobCard = document.createElement('div');
-    jobCard.className = "bg-white p-3 rounded border border-slate-200 shadow-sm relative group mb-4";
+    jobCard.className = "job-card";
     jobCard.innerHTML = `
-      <div class="absolute -left-2 -top-2 bg-blue-100 text-blue-600 text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border border-blue-200">
-        ${index + 1}
-      </div>
-      <div class="grid gap-3 mt-2">
-        <input type="text" placeholder="Company" class="data-field w-full text-sm border-slate-200 rounded p-2 bg-slate-50 font-semibold" data-key="company" value="${job.company || ''}">
-        <input type="text" placeholder="Job Title" class="data-field w-full text-sm border-slate-200 rounded p-2" data-key="title" value="${job.title || ''}">
-        <input type="text" placeholder="Location" class="data-field w-full text-sm border-slate-200 rounded p-2" data-key="location" value="${job.location || ''}">
-        <div class="flex gap-2">
-          <input type="text" placeholder="Start Date" class="data-field w-1/2 text-sm border-slate-200 rounded p-2" data-key="startDate" value="${job.startDate || ''}">
-          <input type="text" placeholder="End Date" class="data-field w-1/2 text-sm border-slate-200 rounded p-2" data-key="endDate" value="${job.endDate || ''}">
+      <div class="job-badge">${index + 1}</div>
+      <div class="grid-gap">
+        <input type="text" placeholder="Company" class="data-field" data-key="company" value="${job.company || ''}">
+        <input type="text" placeholder="Job Title" class="data-field" data-key="title" value="${job.title || ''}">
+        <input type="text" placeholder="Location" class="data-field" data-key="location" value="${job.location || ''}">
+        <div class="row">
+          <input type="text" placeholder="Start Date" class="data-field half" data-key="startDate" value="${job.startDate || ''}">
+          <input type="text" placeholder="End Date" class="data-field half" data-key="endDate" value="${job.endDate || ''}">
         </div>
-        <textarea placeholder="Description" rows="3" class="data-field w-full text-sm border-slate-200 rounded p-2" data-key="description">${job.description || ''}</textarea>
+        <textarea placeholder="Description" rows="3" class="data-field" data-key="description">${job.description || ''}</textarea>
       </div>
     `;
     jobsContainer.appendChild(jobCard);
   });
 }
 
-// --- 4. Storage & UI Helpers ---
+// --- 4. Storage & Helpers ---
 function setLoading(isLoading, text) {
   if(isLoading) {
     loadingIndicator.textContent = text;
@@ -103,6 +114,8 @@ function setLoading(isLoading, text) {
 }
 
 async function extractTextFromPDF(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error("PDF.js library not loaded");
+  
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = "";
@@ -116,7 +129,6 @@ async function extractTextFromPDF(file) {
   return fullText;
 }
 
-// ... existing code for Storage Management (loadSavedResumesList, saveResumeToStorage, event listeners) ...
 async function loadSavedResumesList() {
   const data = await chrome.storage.local.get(null);
   savedSelect.innerHTML = '<option value="">Select a resume...</option>';
@@ -154,7 +166,7 @@ saveBtn.addEventListener('click', () => {
     return;
   }
   const jobs = [];
-  const cards = jobsContainer.children;
+  const cards = jobsContainer.querySelectorAll('.job-card');
   for (let card of cards) {
     const inputs = card.querySelectorAll('.data-field');
     const job = {};
