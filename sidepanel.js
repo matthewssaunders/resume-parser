@@ -1,5 +1,5 @@
 // --- CONFIGURATION ---
-const CLOUDFLARE_WORKER_URL = "YOUR_WORKER_URL_HERE"; 
+const CLOUDFLARE_WORKER_URL = "https://resume-parser.matthewssaunders.workers.dev/"; 
 const SECRET_KEY = "YOUR_CHOSEN_SECRET_PASSWORD"; // Must match 'SECRET_KEY' variable in Cloudflare
 
 const uploadInput = document.getElementById('pdf-upload');
