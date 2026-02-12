@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Auto-Applier",
+  "version": "1.0",
+  "description": "Parse resumes and fill job applications via Sidebar.",
+  "permissions": ["sidePanel", "storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Application Helper"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}
