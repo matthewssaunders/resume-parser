@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Helper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  </style>
+  <!-- Load PDF.js Locally -->
+  <script src="pdf.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-900">Job App Filler</h1>
+    <p class="text-xs text-slate-500">AI-Powered Resume Parsing</p>
+  </div>
+
+  <!-- Actions Area -->
+  <div class="space-y-4 mb-6 bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+    
+    <!-- Upload -->
+    <div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">PARSE NEW RESUME</label>
+      <input type="file" id="pdf-upload" accept=".pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+      <div id="loading-indicator" class="hidden mt-2 text-xs text-blue-600 animate-pulse font-semibold">Processing...</div>
+    </div>
+
+    <hr class="border-slate-100">
+
+    <!-- Saved Resumes -->
+    <div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">LOAD SAVED</label>
+      <div class="flex gap-2">
+        <select id="saved-resumes" class="flex-1 text-sm border-slate-300 rounded-md shadow-sm border p-2 bg-slate-50">
+          <option value="">Select a resume...</option>
+        </select>
+        <button id="delete-btn" class="text-red-500 hover:bg-red-50 p-2 rounded" title="Delete Saved">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Job Entries Container -->
+  <div id="jobs-container" class="space-y-6 mb-20">
+    <!-- Dynamic job fields will appear here -->
+  </div>
+
+  <!-- Sticky Footer -->
+  <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-lg flex gap-3">
+    <button id="save-local-btn" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded transition">
+      Save
+    </button>
+    <button id="fill-page-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition">
+      Fill Page
+    </button>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
