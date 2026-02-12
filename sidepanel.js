@@ -46,17 +46,31 @@ uploadInput.addEventListener('change', async (e) => {
     });
 
     if (response.status === 401) {
-      throw new Error(`Unauthorized (401). Please check the SECRET_KEY in sidepanel.js matches Cloudflare.`);
+      throw new Error(`Unauthorized. Check SECRET_KEY in sidepanel.js matches Cloudflare.`);
     }
     
+    // C. Handle Responses
     if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Worker failed: ${response.status} - ${errText}`);
+      // Try to get error message from JSON, fallback to status text
+      let errMessage = response.statusText;
+      try {
+        const errData = await response.json();
+        if (errData.error) errMessage = errData.error;
+      } catch (e) { /* ignore JSON parse error on error responses */ }
+      
+      throw new Error(`Worker Error: ${errMessage}`);
     }
     
-    const parsedData = await response.json();
+    // D. Parse Success Data
+    let parsedData;
+    try {
+      parsedData = await response.json();
+    } catch (jsonErr) {
+      console.error("Raw response parsing failed", jsonErr);
+      throw new Error("Received invalid data from AI. Please try uploading again.");
+    }
     
-    // C. Render
+    // E. Render
     renderJobs(parsedData.jobs || []);
     
     const saveName = prompt("Success! Name this resume:", "Resume " + new Date().toLocaleDateString());
@@ -78,8 +92,8 @@ function renderJobs(jobs) {
   jobsContainer.innerHTML = ''; 
   const jobsToShow = jobs.slice(0, 25);
 
-  if(jobsToShow.length === 0) {
-    jobsContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:0.875rem;">No jobs found in AI response.</div>';
+  if(!jobs || jobsToShow.length === 0) {
+    jobsContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:0.875rem;">No jobs found.</div>';
     return;
   }
 
@@ -89,14 +103,14 @@ function renderJobs(jobs) {
     jobCard.innerHTML = `
       <div class="job-badge">${index + 1}</div>
       <div class="grid-gap">
-        <input type="text" placeholder="Company" class="data-field" data-key="company" value="${job.company || ''}">
-        <input type="text" placeholder="Job Title" class="data-field" data-key="title" value="${job.title || ''}">
-        <input type="text" placeholder="Location" class="data-field" data-key="location" value="${job.location || ''}">
+        <input type="text" placeholder="Company" class="data-field" data-key="company" value="${escapeHtml(job.company || '')}">
+        <input type="text" placeholder="Job Title" class="data-field" data-key="title" value="${escapeHtml(job.title || '')}">
+        <input type="text" placeholder="Location" class="data-field" data-key="location" value="${escapeHtml(job.location || '')}">
         <div class="row">
-          <input type="text" placeholder="Start Date" class="data-field half" data-key="startDate" value="${job.startDate || ''}">
-          <input type="text" placeholder="End Date" class="data-field half" data-key="endDate" value="${job.endDate || ''}">
+          <input type="text" placeholder="Start Date" class="data-field half" data-key="startDate" value="${escapeHtml(job.startDate || '')}">
+          <input type="text" placeholder="End Date" class="data-field half" data-key="endDate" value="${escapeHtml(job.endDate || '')}">
         </div>
-        <textarea placeholder="Description" rows="3" class="data-field" data-key="description">${job.description || ''}</textarea>
+        <textarea placeholder="Description" rows="3" class="data-field" data-key="description">${escapeHtml(job.description || '')}</textarea>
       </div>
     `;
     jobsContainer.appendChild(jobCard);
@@ -111,6 +125,16 @@ function setLoading(isLoading, text) {
   } else {
     loadingIndicator.classList.add('hidden');
   }
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 async function extractTextFromPDF(file) {
