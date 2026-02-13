@@ -3,7 +3,7 @@
 body {
   margin: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f1f5f9; /* Slightly darker background for contrast */
+  background-color: #f1f5f9;
   color: #334155;
   padding: 1rem;
 }
@@ -26,13 +26,56 @@ label { display: block; font-size: 0.7rem; font-weight: 700; text-transform: upp
 .section { margin-bottom: 1rem; }
 .divider { border: 0; border-top: 1px solid #e2e8f0; margin: 1rem 0; }
 
+/* Drop Zone Styles (New) */
+.drop-zone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.drop-zone:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+.drop-zone.dragover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  transform: scale(1.01);
+}
+.drop-icon {
+  color: #64748b;
+  background: #e2e8f0;
+  padding: 8px;
+  border-radius: 50%;
+  display: inline-flex;
+}
+.drop-text {
+  font-size: 0.875rem;
+  color: #475569;
+  margin: 0;
+  line-height: 1.4;
+}
+/* Hide the actual input but keep it accessible for click triggering if needed */
+.hidden-input {
+  display: none; 
+}
+
 /* Form Elements */
-input[type="text"], input[type="file"], select, textarea {
+input[type="text"], select, textarea {
   width: 100%;
   padding: 0.5rem;
   font-size: 0.875rem;
   border: 1px solid #cbd5e1;
-  border-radius: 0 0.375rem 0.375rem 0; /* Flat left side for button attachment */
+  border-radius: 0 0.375rem 0.375rem 0;
   background-color: #fff;
   transition: border-color 0.2s;
   color: #1e293b;
@@ -40,9 +83,8 @@ input[type="text"], input[type="file"], select, textarea {
 input[type="text"]:focus, textarea:focus {
   border-color: #2563eb;
   outline: none;
-  ring: 2px solid #bfdbfe;
+  box-shadow: 0 0 0 2px #bfdbfe;
 }
-input[type="file"] { background-color: transparent; border: none; padding: 0; border-radius: 0.375rem;}
 
 /* Copy Input Group */
 .input-group {
@@ -77,27 +119,26 @@ button { cursor: pointer; border: none; }
 /* Job Cards */
 .job-card {
   background-color: white;
-  padding: 1.25rem 1rem 1rem 1rem; /* More top padding for badge */
+  padding: 1.25rem 1rem 1rem 1rem;
   border-radius: 0.5rem;
-  border: 2px solid #94a3b8; /* Thicker, darker border */
+  border: 2px solid #94a3b8;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   margin-bottom: 1.5rem;
   position: relative;
 }
-/* Prominent Badge */
 .job-badge {
   position: absolute;
   top: -1rem; 
   left: -0.75rem;
   width: 2.5rem; 
   height: 2.5rem;
-  background-color: #2563eb; /* Strong blue */
+  background-color: #2563eb;
   color: white;
   font-size: 1rem;
   font-weight: 800;
   display: flex; align-items: center; justify-content: center;
   border-radius: 9999px;
-  border: 3px solid #f1f5f9; /* Matches background to look like cutout */
+  border: 3px solid #f1f5f9;
   box-shadow: 0 2px 4px rgb(0 0 0 / 0.2);
   z-index: 10;
 }
@@ -125,4 +166,6 @@ button { cursor: pointer; border: none; }
 
 /* Utils */
 .hidden { display: none; }
-.loading { color: #2563eb; font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem; }
+.loading { color: #2563eb; font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem; text-align: center; }
+.opacity-50 { opacity: 0.5; }
+.pointer-events-none { pointer-events: none; }
