@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>App Helper</title>
-  <!-- Linked to local styles.css to avoid CSP errors -->
   <link rel="stylesheet" href="styles.css">
-  <!-- Local PDF.js is required -->
   <script src="pdf.min.js"></script>
 </head>
 <body>
@@ -33,7 +31,6 @@
           <option value="">Select a resume...</option>
         </select>
         <button id="delete-btn" class="btn-icon" title="Delete Saved">
-          <!-- SVG Trash Icon -->
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
         </button>
       </div>
@@ -49,8 +46,7 @@
 
   <!-- Sticky Footer -->
   <div class="footer">
-    <button id="save-local-btn" class="btn-secondary">Save</button>
-    <button id="fill-page-btn" class="btn-primary">Fill Page</button>
+    <button id="save-local-btn" class="btn-secondary">Save Changes</button>
   </div>
 
   <script src="sidepanel.js"></script>
