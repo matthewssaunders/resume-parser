@@ -2,6 +2,7 @@
 const CLOUDFLARE_WORKER_URL = "https://resume-parser.matthewssaunders.workers.dev"; 
 
 const uploadInput = document.getElementById('pdf-upload');
+const dropZone = document.getElementById('drop-zone');
 const loadingIndicator = document.getElementById('loading-indicator');
 const jobsContainer = document.getElementById('jobs-container');
 const savedSelect = document.getElementById('saved-resumes');
@@ -16,84 +17,63 @@ if (typeof pdfjsLib !== 'undefined') {
 // --- 1. Initialization ---
 document.addEventListener('DOMContentLoaded', loadSavedResumesList);
 
-// --- 2. Copy Functionality ---
-// Event delegation for copy buttons (since they are dynamic)
-jobsContainer.addEventListener('click', (e) => {
-  const btn = e.target.closest('.copy-btn');
-  if (!btn) return;
-
-  const inputGroup = btn.closest('.input-group');
-  const input = inputGroup.querySelector('.data-field');
-  
-  if (input && input.value) {
-    navigator.clipboard.writeText(input.value).then(() => {
-      // Visual feedback
-      const originalIcon = btn.innerHTML;
-      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-      setTimeout(() => {
-        btn.innerHTML = originalIcon;
-      }, 1000);
-    });
-  }
+// --- 2. Drag & Drop Logic ---
+// Prevent default drag behaviors
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, preventDefaults, false);
 });
 
-// --- 3. Rendering Logic ---
-function renderJobs(jobs) {
-  jobsContainer.innerHTML = ''; 
-  const jobsToShow = jobs.slice(0, 25);
-
-  if(!jobs || jobsToShow.length === 0) {
-    jobsContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:0.875rem;">No jobs found.</div>';
-    return;
-  }
-
-  jobsToShow.forEach((job, index) => {
-    const jobCard = document.createElement('div');
-    jobCard.className = "job-card";
-    
-    // Copy Icon SVG
-    const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-
-    // Helper to create a field
-    const createField = (label, key, value, isTextarea = false, widthClass = '') => {
-      const inputHtml = isTextarea 
-        ? `<textarea class="data-field" rows="4" data-key="${key}">${escapeHtml(value)}</textarea>`
-        : `<input type="text" class="data-field" data-key="${key}" value="${escapeHtml(value)}">`;
-
-      return `
-        <div class="${widthClass}">
-          <label>${label}</label>
-          <div class="input-group">
-            <button class="copy-btn" title="Copy to clipboard">${copyIcon}</button>
-            ${inputHtml}
-          </div>
-        </div>
-      `;
-    };
-
-    jobCard.innerHTML = `
-      <div class="job-badge">${index + 1}</div>
-      
-      ${createField('Company', 'company', job.company)}
-      ${createField('Job Title', 'title', job.title)}
-      ${createField('Location', 'location', job.location)}
-      
-      <div class="row">
-        ${createField('Start Date', 'startDate', job.startDate, false, 'half')}
-        ${createField('End Date', 'endDate', job.endDate, false, 'half')}
-      </div>
-      
-      ${createField('Description', 'description', job.description, true)}
-    `;
-    
-    jobsContainer.appendChild(jobCard);
-  });
+function preventDefaults(e) {
+  e.preventDefault();
+  e.stopPropagation();
 }
 
-// --- 4. File Upload & Parsing ---
-uploadInput.addEventListener('change', async (e) => {
-  const file = e.target.files[0];
+// Highlight drop zone when item is dragged over it
+['dragenter', 'dragover'].forEach(eventName => {
+  dropZone.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+  dropZone.classList.add('dragover');
+}
+
+function unhighlight(e) {
+  dropZone.classList.remove('dragover');
+}
+
+// Handle dropped files
+dropZone.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+  const dt = e.dataTransfer;
+  const files = dt.files;
+  handleFileSelect(files[0]);
+}
+
+// Handle click to upload (proxies to hidden input)
+dropZone.addEventListener('click', () => {
+  uploadInput.click();
+});
+
+// Handle file input change
+uploadInput.addEventListener('change', (e) => {
+  handleFileSelect(e.target.files[0]);
+});
+
+
+// --- 3. Main File Processing Logic ---
+async function handleFileSelect(file) {
   if (!file) return;
+
+  // Check file type
+  if (file.type !== 'application/pdf') {
+    alert("Please upload a PDF file.");
+    return;
+  }
 
   const authKey = await getOrPromptAuthKey();
   if (!authKey) {
@@ -107,7 +87,7 @@ uploadInput.addEventListener('change', async (e) => {
   try {
     const text = await extractTextFromPDF(file);
     
-    // UPDATED: Privacy Notice
+    // UPDATED: Privacy Notice in Loading State
     setLoading(true, "Analyzing... (PII is being removed, data not used for training purposes)");
 
     const response = await fetch(CLOUDFLARE_WORKER_URL, {
@@ -130,7 +110,7 @@ uploadInput.addEventListener('change', async (e) => {
     const parsedData = await response.json();
     renderJobs(parsedData.jobs || []);
     
-    // UPDATED: Success Alert
+    // Success Alert
     setTimeout(() => {
       alert("✅ Resume parsed! Please review all information for accuracy before submitting to job applications.");
       
@@ -147,15 +127,85 @@ uploadInput.addEventListener('change', async (e) => {
     setLoading(false);
     uploadInput.value = ''; 
   }
+}
+
+// --- 4. Rendering Logic ---
+// Event delegation for copy buttons
+jobsContainer.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy-btn');
+  if (!btn) return;
+
+  const inputGroup = btn.closest('.input-group');
+  const input = inputGroup.querySelector('.data-field');
+  
+  if (input && input.value) {
+    navigator.clipboard.writeText(input.value).then(() => {
+      const originalIcon = btn.innerHTML;
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      setTimeout(() => {
+        btn.innerHTML = originalIcon;
+      }, 1000);
+    });
+  }
 });
+
+function renderJobs(jobs) {
+  jobsContainer.innerHTML = ''; 
+  const jobsToShow = jobs.slice(0, 25);
+
+  if(!jobs || jobsToShow.length === 0) {
+    jobsContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:0.875rem;">No jobs found.</div>';
+    return;
+  }
+
+  jobsToShow.forEach((job, index) => {
+    const jobCard = document.createElement('div');
+    jobCard.className = "job-card";
+    
+    const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+
+    const createField = (label, key, value, isTextarea = false, widthClass = '') => {
+      const inputHtml = isTextarea 
+        ? `<textarea class="data-field" rows="4" data-key="${key}">${escapeHtml(value)}</textarea>`
+        : `<input type="text" class="data-field" data-key="${key}" value="${escapeHtml(value)}">`;
+
+      return `
+        <div class="${widthClass}">
+          <label>${label}</label>
+          <div class="input-group">
+            <button class="copy-btn" title="Copy to clipboard">${copyIcon}</button>
+            ${inputHtml}
+          </div>
+        </div>
+      `;
+    };
+
+    jobCard.innerHTML = `
+      <div class="job-badge">${index + 1}</div>
+      ${createField('Company', 'company', job.company)}
+      ${createField('Job Title', 'title', job.title)}
+      ${createField('Location', 'location', job.location)}
+      <div class="row">
+        ${createField('Start Date', 'startDate', job.startDate, false, 'half')}
+        ${createField('End Date', 'endDate', job.endDate, false, 'half')}
+      </div>
+      ${createField('Description', 'description', job.description, true)}
+    `;
+    
+    jobsContainer.appendChild(jobCard);
+  });
+}
+
 
 // --- 5. Utilities & Storage ---
 function setLoading(isLoading, text) {
   if(isLoading) {
     loadingIndicator.textContent = text;
     loadingIndicator.classList.remove('hidden');
+    dropZone.classList.add('opacity-50', 'pointer-events-none');
   } else {
     loadingIndicator.classList.add('hidden');
+    dropZone.classList.remove('opacity-50', 'pointer-events-none');
   }
 }
 
