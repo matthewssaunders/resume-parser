@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Auto-Applier",
-  "version": "1.0",
-  "description": "Parse resumes and fill job applications via Sidebar.",
+  "name": "Never WORKaDAY",
+  "version": "1.2",
+  "description": "AI-Powered Resume Parser for filling job applications.",
   "permissions": ["sidePanel", "storage", "activeTab", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Open Application Helper"
+    "default_title": "Open Never WORKaDAY"
   },
   "side_panel": {
     "default_path": "sidepanel.html"
