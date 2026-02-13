@@ -2,8 +2,8 @@
 // 1. Enter your Cloudflare Worker URL (e.g., https://resume-parser.yourname.workers.dev)
 const CLOUDFLARE_WORKER_URL = "https://resume-parser.matthewssaunders.workers.dev"; 
 
-// 2. Enter the EXACT password you set in Cloudflare Variables
-const SECRET_KEY = "RESUME-PARSER-V1"; 
+// NO HARDCODED KEY HERE ANYMORE!
+// We will load it from settings.
 
 const uploadInput = document.getElementById('pdf-upload');
 const loadingIndicator = document.getElementById('loading-indicator');
@@ -27,6 +27,14 @@ uploadInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
+  // 1. GET AUTH KEY SAFELY
+  const authKey = await getOrPromptAuthKey();
+  if (!authKey) {
+    alert("Cannot proceed without an API Key.");
+    uploadInput.value = '';
+    return;
+  }
+
   setLoading(true, "Extracting text...");
 
   try {
@@ -40,23 +48,24 @@ uploadInput.addEventListener('change', async (e) => {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'X-Auth-Key': SECRET_KEY 
+        'X-Auth-Key': authKey // Use the variable, not a hardcoded string
       },
       body: JSON.stringify({ text: text })
     });
 
     if (response.status === 401) {
-      throw new Error(`Unauthorized. Check SECRET_KEY in sidepanel.js matches Cloudflare.`);
+      // If 401, the key was wrong. Clear it so user can try again next time.
+      await chrome.storage.local.remove('user_api_key');
+      throw new Error(`Unauthorized. The Secret Key was incorrect and has been cleared. Please try again.`);
     }
     
     // C. Handle Responses
     if (!response.ok) {
-      // Try to get error message from JSON, fallback to status text
       let errMessage = response.statusText;
       try {
         const errData = await response.json();
         if (errData.error) errMessage = errData.error;
-      } catch (e) { /* ignore JSON parse error on error responses */ }
+      } catch (e) { }
       
       throw new Error(`Worker Error: ${errMessage}`);
     }
@@ -86,6 +95,24 @@ uploadInput.addEventListener('change', async (e) => {
     uploadInput.value = ''; 
   }
 });
+
+// --- HELPER: Secure Key Management ---
+async function getOrPromptAuthKey() {
+  // Check storage first
+  const result = await chrome.storage.local.get('user_api_key');
+  if (result.user_api_key) {
+    return result.user_api_key;
+  }
+
+  // If missing, prompt the user
+  const inputKey = prompt("First Time Setup:\nPlease enter your Cloudflare Secret Key:");
+  if (inputKey && inputKey.trim() !== "") {
+    // Save it for next time
+    await chrome.storage.local.set({ 'user_api_key': inputKey.trim() });
+    return inputKey.trim();
+  }
+  return null;
+}
 
 // --- 3. Rendering Logic ---
 function renderJobs(jobs) {
