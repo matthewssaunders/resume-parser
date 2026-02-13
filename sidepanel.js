@@ -1,9 +1,5 @@
 // --- CONFIGURATION ---
-// 1. Enter your Cloudflare Worker URL (e.g., https://resume-parser.yourname.workers.dev)
 const CLOUDFLARE_WORKER_URL = "https://resume-parser.matthewssaunders.workers.dev"; 
-
-// NO HARDCODED KEY HERE ANYMORE!
-// We will load it from settings.
 
 const uploadInput = document.getElementById('pdf-upload');
 const loadingIndicator = document.getElementById('loading-indicator');
@@ -12,22 +8,93 @@ const savedSelect = document.getElementById('saved-resumes');
 const saveBtn = document.getElementById('save-local-btn');
 const deleteBtn = document.getElementById('delete-btn');
 
-// Configure PDF.js worker
+// Configure PDF.js
 if (typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
-} else {
-  console.error("PDF.js not loaded. Did you download pdf.min.js?");
 }
 
 // --- 1. Initialization ---
 document.addEventListener('DOMContentLoaded', loadSavedResumesList);
 
-// --- 2. File Upload & Parsing ---
+// --- 2. Copy Functionality ---
+// Event delegation for copy buttons (since they are dynamic)
+jobsContainer.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy-btn');
+  if (!btn) return;
+
+  const inputGroup = btn.closest('.input-group');
+  const input = inputGroup.querySelector('.data-field');
+  
+  if (input && input.value) {
+    navigator.clipboard.writeText(input.value).then(() => {
+      // Visual feedback
+      const originalIcon = btn.innerHTML;
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      setTimeout(() => {
+        btn.innerHTML = originalIcon;
+      }, 1000);
+    });
+  }
+});
+
+// --- 3. Rendering Logic ---
+function renderJobs(jobs) {
+  jobsContainer.innerHTML = ''; 
+  const jobsToShow = jobs.slice(0, 25);
+
+  if(!jobs || jobsToShow.length === 0) {
+    jobsContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:0.875rem;">No jobs found.</div>';
+    return;
+  }
+
+  jobsToShow.forEach((job, index) => {
+    const jobCard = document.createElement('div');
+    jobCard.className = "job-card";
+    
+    // Copy Icon SVG
+    const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+
+    // Helper to create a field
+    const createField = (label, key, value, isTextarea = false, widthClass = '') => {
+      const inputHtml = isTextarea 
+        ? `<textarea class="data-field" rows="4" data-key="${key}">${escapeHtml(value)}</textarea>`
+        : `<input type="text" class="data-field" data-key="${key}" value="${escapeHtml(value)}">`;
+
+      return `
+        <div class="${widthClass}">
+          <label>${label}</label>
+          <div class="input-group">
+            <button class="copy-btn" title="Copy to clipboard">${copyIcon}</button>
+            ${inputHtml}
+          </div>
+        </div>
+      `;
+    };
+
+    jobCard.innerHTML = `
+      <div class="job-badge">${index + 1}</div>
+      
+      ${createField('Company', 'company', job.company)}
+      ${createField('Job Title', 'title', job.title)}
+      ${createField('Location', 'location', job.location)}
+      
+      <div class="row">
+        ${createField('Start Date', 'startDate', job.startDate, false, 'half')}
+        ${createField('End Date', 'endDate', job.endDate, false, 'half')}
+      </div>
+      
+      ${createField('Description', 'description', job.description, true)}
+    `;
+    
+    jobsContainer.appendChild(jobCard);
+  });
+}
+
+// --- 4. File Upload & Parsing ---
 uploadInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  // 1. GET AUTH KEY SAFELY
   const authKey = await getOrPromptAuthKey();
   if (!authKey) {
     alert("Cannot proceed without an API Key.");
@@ -38,48 +105,27 @@ uploadInput.addEventListener('change', async (e) => {
   setLoading(true, "Extracting text...");
 
   try {
-    // A. Extract Text Locally
     const text = await extractTextFromPDF(file);
-    
     setLoading(true, "Analyzing with AI...");
 
-    // B. Send Text to Cloudflare Worker
     const response = await fetch(CLOUDFLARE_WORKER_URL, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Auth-Key': authKey // Use the variable, not a hardcoded string
-      },
+      headers: { 'Content-Type': 'application/json', 'X-Auth-Key': authKey },
       body: JSON.stringify({ text: text })
     });
 
     if (response.status === 401) {
-      // If 401, the key was wrong. Clear it so user can try again next time.
       await chrome.storage.local.remove('user_api_key');
       throw new Error(`Unauthorized. The Secret Key was incorrect and has been cleared. Please try again.`);
     }
     
-    // C. Handle Responses
     if (!response.ok) {
       let errMessage = response.statusText;
-      try {
-        const errData = await response.json();
-        if (errData.error) errMessage = errData.error;
-      } catch (e) { }
-      
+      try { const errData = await response.json(); if (errData.error) errMessage = errData.error; } catch (e) {}
       throw new Error(`Worker Error: ${errMessage}`);
     }
     
-    // D. Parse Success Data
-    let parsedData;
-    try {
-      parsedData = await response.json();
-    } catch (jsonErr) {
-      console.error("Raw response parsing failed", jsonErr);
-      throw new Error("Received invalid data from AI. Please try uploading again.");
-    }
-    
-    // E. Render
+    const parsedData = await response.json();
     renderJobs(parsedData.jobs || []);
     
     const saveName = prompt("Success! Name this resume:", "Resume " + new Date().toLocaleDateString());
@@ -96,55 +142,7 @@ uploadInput.addEventListener('change', async (e) => {
   }
 });
 
-// --- HELPER: Secure Key Management ---
-async function getOrPromptAuthKey() {
-  // Check storage first
-  const result = await chrome.storage.local.get('user_api_key');
-  if (result.user_api_key) {
-    return result.user_api_key;
-  }
-
-  // If missing, prompt the user
-  const inputKey = prompt("First Time Setup:\nPlease enter your Cloudflare Secret Key:");
-  if (inputKey && inputKey.trim() !== "") {
-    // Save it for next time
-    await chrome.storage.local.set({ 'user_api_key': inputKey.trim() });
-    return inputKey.trim();
-  }
-  return null;
-}
-
-// --- 3. Rendering Logic ---
-function renderJobs(jobs) {
-  jobsContainer.innerHTML = ''; 
-  const jobsToShow = jobs.slice(0, 25);
-
-  if(!jobs || jobsToShow.length === 0) {
-    jobsContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:0.875rem;">No jobs found.</div>';
-    return;
-  }
-
-  jobsToShow.forEach((job, index) => {
-    const jobCard = document.createElement('div');
-    jobCard.className = "job-card";
-    jobCard.innerHTML = `
-      <div class="job-badge">${index + 1}</div>
-      <div class="grid-gap">
-        <input type="text" placeholder="Company" class="data-field" data-key="company" value="${escapeHtml(job.company || '')}">
-        <input type="text" placeholder="Job Title" class="data-field" data-key="title" value="${escapeHtml(job.title || '')}">
-        <input type="text" placeholder="Location" class="data-field" data-key="location" value="${escapeHtml(job.location || '')}">
-        <div class="row">
-          <input type="text" placeholder="Start Date" class="data-field half" data-key="startDate" value="${escapeHtml(job.startDate || '')}">
-          <input type="text" placeholder="End Date" class="data-field half" data-key="endDate" value="${escapeHtml(job.endDate || '')}">
-        </div>
-        <textarea placeholder="Description" rows="3" class="data-field" data-key="description">${escapeHtml(job.description || '')}</textarea>
-      </div>
-    `;
-    jobsContainer.appendChild(jobCard);
-  });
-}
-
-// --- 4. Storage & Helpers ---
+// --- 5. Utilities & Storage ---
 function setLoading(isLoading, text) {
   if(isLoading) {
     loadingIndicator.textContent = text;
@@ -164,13 +162,22 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
+async function getOrPromptAuthKey() {
+  const result = await chrome.storage.local.get('user_api_key');
+  if (result.user_api_key) return result.user_api_key;
+  const inputKey = prompt("First Time Setup:\nPlease enter your Cloudflare Secret Key:");
+  if (inputKey && inputKey.trim() !== "") {
+    await chrome.storage.local.set({ 'user_api_key': inputKey.trim() });
+    return inputKey.trim();
+  }
+  return null;
+}
+
 async function extractTextFromPDF(file) {
   if (typeof pdfjsLib === 'undefined') throw new Error("PDF.js library not loaded");
-  
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = "";
-
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
