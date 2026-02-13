@@ -18,7 +18,6 @@ if (typeof pdfjsLib !== 'undefined') {
 document.addEventListener('DOMContentLoaded', loadSavedResumesList);
 
 // --- 2. Drag & Drop Logic ---
-// Prevent default drag behaviors
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
   dropZone.addEventListener(eventName, preventDefaults, false);
 });
@@ -28,7 +27,6 @@ function preventDefaults(e) {
   e.stopPropagation();
 }
 
-// Highlight drop zone when item is dragged over it
 ['dragenter', 'dragover'].forEach(eventName => {
   dropZone.addEventListener(eventName, highlight, false);
 });
@@ -45,7 +43,6 @@ function unhighlight(e) {
   dropZone.classList.remove('dragover');
 }
 
-// Handle dropped files
 dropZone.addEventListener('drop', handleDrop, false);
 
 function handleDrop(e) {
@@ -54,12 +51,10 @@ function handleDrop(e) {
   handleFileSelect(files[0]);
 }
 
-// Handle click to upload (proxies to hidden input)
 dropZone.addEventListener('click', () => {
   uploadInput.click();
 });
 
-// Handle file input change
 uploadInput.addEventListener('change', (e) => {
   handleFileSelect(e.target.files[0]);
 });
@@ -69,7 +64,6 @@ uploadInput.addEventListener('change', (e) => {
 async function handleFileSelect(file) {
   if (!file) return;
 
-  // Check file type
   if (file.type !== 'application/pdf') {
     alert("Please upload a PDF file.");
     return;
@@ -87,7 +81,6 @@ async function handleFileSelect(file) {
   try {
     const text = await extractTextFromPDF(file);
     
-    // UPDATED: Privacy Notice in Loading State
     setLoading(true, "Analyzing... (PII is being removed, data not used for training purposes)");
 
     const response = await fetch(CLOUDFLARE_WORKER_URL, {
@@ -110,7 +103,6 @@ async function handleFileSelect(file) {
     const parsedData = await response.json();
     renderJobs(parsedData.jobs || []);
     
-    // Success Alert
     setTimeout(() => {
       alert("✅ Resume parsed! Please review all information for accuracy before submitting to job applications.");
       
@@ -130,7 +122,6 @@ async function handleFileSelect(file) {
 }
 
 // --- 4. Rendering Logic ---
-// Event delegation for copy buttons
 jobsContainer.addEventListener('click', (e) => {
   const btn = e.target.closest('.copy-btn');
   if (!btn) return;
@@ -180,10 +171,11 @@ function renderJobs(jobs) {
       `;
     };
 
+    // UPDATED ORDER HERE: Job Title first, then Company
     jobCard.innerHTML = `
       <div class="job-badge">${index + 1}</div>
-      ${createField('Company', 'company', job.company)}
       ${createField('Job Title', 'title', job.title)}
+      ${createField('Company', 'company', job.company)}
       ${createField('Location', 'location', job.location)}
       <div class="row">
         ${createField('Start Date', 'startDate', job.startDate, false, 'half')}
