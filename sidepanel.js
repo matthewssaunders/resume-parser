@@ -106,7 +106,9 @@ uploadInput.addEventListener('change', async (e) => {
 
   try {
     const text = await extractTextFromPDF(file);
-    setLoading(true, "Analyzing with AI...");
+    
+    // UPDATED: Privacy Notice
+    setLoading(true, "Analyzing... (PII is being removed, data not used for training purposes)");
 
     const response = await fetch(CLOUDFLARE_WORKER_URL, {
       method: 'POST',
@@ -128,10 +130,15 @@ uploadInput.addEventListener('change', async (e) => {
     const parsedData = await response.json();
     renderJobs(parsedData.jobs || []);
     
-    const saveName = prompt("Success! Name this resume:", "Resume " + new Date().toLocaleDateString());
-    if (saveName) {
-      saveResumeToStorage(saveName, parsedData.jobs);
-    }
+    // UPDATED: Success Alert
+    setTimeout(() => {
+      alert("✅ Resume parsed! Please review all information for accuracy before submitting to job applications.");
+      
+      const saveName = prompt("Success! Name this resume to save it for later:", "Resume " + new Date().toLocaleDateString());
+      if (saveName) {
+        saveResumeToStorage(saveName, parsedData.jobs);
+      }
+    }, 100);
 
   } catch (err) {
     console.error(err);
